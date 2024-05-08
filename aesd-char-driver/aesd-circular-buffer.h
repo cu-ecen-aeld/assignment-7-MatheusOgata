@@ -51,6 +51,12 @@ struct aesd_circular_buffer
     bool full;
 };
 
+struct circ_buffer_foreach
+{
+	size_t count;
+	size_t index;
+};
+
 extern struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
             size_t char_offset, size_t *entry_offset_byte_rtn );
 
@@ -72,11 +78,19 @@ extern void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer);
  *      free(entry->buffptr);
  * }
  */
-#define AESD_CIRCULAR_BUFFER_FOREACH(entryptr,buffer,index) \
-    for(index=0, entryptr=&((buffer)->entry[index]); \
-            index<AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; \
-            index++, entryptr=&((buffer)->entry[index]))
 
+
+#define AESD_INCREMENT_INDEX(index)		(index = (((index + 1) < AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) ? (index + 1) : (0)))
+
+
+#define AESD_CIRCULAR_BUFFER_SIZE(buffer)	((buffer->full) ? (AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) :\
+	       					((buffer->in_offs > buffer->out_offs) ? (buffer->in_offs - buffer->out_offs) :\
+						((buffer->out_offs > buffer->in_offs) ? (AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED - buffer->out_offs + buffer->in_offs) : (0))))
+
+#define AESD_CIRCULAR_BUFFER_FOREACH(entryptr,buffer, foreach_data) \
+    for(foreach_data.index = buffer->in_offs, foreach_data.count = 0, entryptr=&((buffer)->entry[foreach_data.index]); \
+            foreach_data.count != AESD_CIRCULAR_BUFFER_SIZE(buffer);\
+            AESD_INCREMENT_INDEX(foreach_data.index), foreach_data.count++, entryptr=&((buffer)->entry[foreach_data.index]))
 
 
 #endif /* AESD_CIRCULAR_BUFFER_H */
